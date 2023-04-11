@@ -1,19 +1,36 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Model;
 
 namespace KB.Models
 {
+    public enum VariableType
+    {
+        [Description("Выводимая")]
+        Calculating,
+        [Description("Запрашиваемая")]
+        Inputting,
+        [Description("Запрашиваемо-выводимая")]
+        CalculatingInputting
+    }
+    
+    [Serializable]
     public class Variable
     {
-        public Variable(string name)
+        public Variable(string name, VariableType variableType = VariableType.Calculating)
         {
-            _currentValueIndex = -1;
             Name = name;
+            VariableType = variableType;
         }
 
+        [DisplayName("Переменная")]
         public string Name { get; set; }
+        
+        [DisplayName("Тип")]
+        public VariableType VariableType { get; set; }
         public BindingList<Domain> Domain { get; set; } = new BindingList<Domain>();
 
         public AddResult AddDomain(string domain)
@@ -42,12 +59,9 @@ namespace KB.Models
             Domain[index].Name = domain;
             return UpdateResult.Success;
         }
-        
-
-        public string? CurrentValue => _currentValueIndex < 0 || _currentValueIndex > Domain.Count
-            ? null
-            : Domain[_currentValueIndex].Name;
-
-        private int _currentValueIndex;
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }

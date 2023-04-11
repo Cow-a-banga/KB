@@ -19,11 +19,14 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Update="CreateRule.cs">
+      <Compile Update="SaveRuleForm.cs">
         <SubType>Form</SubType>
       </Compile>
-      <Compile Update="CreateVariable.cs">
+      <Compile Update="ConsultForm.cs">
         <SubType>Form</SubType>
+      </Compile>
+      <Compile Update="DataGridViewDragNDrop.cs">
+        <SubType>Component</SubType>
       </Compile>
     </ItemGroup>
 

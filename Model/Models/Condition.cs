@@ -1,10 +1,11 @@
-﻿namespace KB.Models
+﻿using System;
+
+namespace KB.Models
 {
+    [Serializable]
     public class Condition
     {
-        public Variable Variable { get; set; }
+        public string VariableName { get; set; }
         public string Value { get; set; }
-
-        public bool IsPassed => Variable.CurrentValue == Value;
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 
@@ -20,12 +21,12 @@ namespace KB.Models
         NoIndex
     }
     
+    [Serializable]
     public class KnowledgeBase
     {
         public BindingList<Rule> Rules { get; set; } = new BindingList<Rule>();
-        public List<InputRule> InputRules { get; set; } = new List<InputRule>();
-        public Variable Goal { get; set; }
         public BindingList<Variable> Variables { get; set; } = new BindingList<Variable>();
+        public WorkingMemory WorkingMemory { get; set; }
 
         public AddResult AddVariable(Variable variable)
         {
@@ -39,7 +40,7 @@ namespace KB.Models
             return AddResult.Success;
         }
 
-        public UpdateResult UpdateVariable(string name, int index)
+        public UpdateResult UpdateVariable(string name, VariableType type,  int index)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return UpdateResult.NoName;
@@ -51,7 +52,13 @@ namespace KB.Models
                 return UpdateResult.Duplicate;
 
             Variables[index].Name = name;
+            Variables[index].VariableType = type;
             return UpdateResult.Success;
+        }
+
+        public Variable GetVariable(string name)
+        {
+            return Variables.FirstOrDefault(x => x.Name == name);
         }
     }
 }
