@@ -38,7 +38,7 @@ namespace Interface
                 var result = await consult.Run();
             
                 questions.Add($"Результат консультации:");
-                questions.Add($"{_goal.Name} = {result.GoalValue}");
+                questions.Add($"{_goal.Name} = {result.GoalValue ?? "NULL"}");
                 questions.Add("Можете закрывать окно консультации");
 
                 lbQuestion.Text = "";

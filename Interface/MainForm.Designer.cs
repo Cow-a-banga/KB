@@ -1,5 +1,3 @@
-using KB.Models;
-
 namespace Interface
 {
     partial class MainForm
@@ -31,7 +29,7 @@ namespace Interface
         /// </summary>
         private void InitializeComponent()
         {
-            this.dgvRules = new DataGridViewDragNDrop<Rule>();
+            this.dgvRules = new DataGridViewDragNDrop<KB.Models.Rule>();
             this.tabControl = new System.Windows.Forms.TabControl();
             this.rulesTab = new System.Windows.Forms.TabPage();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
@@ -54,8 +52,8 @@ namespace Interface
             this.lbDomain = new System.Windows.Forms.Label();
             this.btnAddDomain = new System.Windows.Forms.Button();
             this.tbDomain = new System.Windows.Forms.TextBox();
-            this.dgvDoman = new System.Windows.Forms.DataGridView();
-            this.dgvVariables = new DataGridViewDragNDrop<Variable>();
+            this.dgvDoman = new DataGridViewDragNDrop<Model.Domain>();
+            this.dgvVariables = new DataGridViewDragNDrop<KB.Models.Variable>();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.tvMemory = new System.Windows.Forms.TreeView();
             this.fontDialog1 = new System.Windows.Forms.FontDialog();
@@ -577,7 +575,7 @@ namespace Interface
         private System.Windows.Forms.Button btnDeleteVariable;
         private System.Windows.Forms.Button btnAddVariable;
 
-        private System.Windows.Forms.DataGridView dgvDoman;
+        private DataGridViewDragNDrop<Model.Domain> dgvDoman;
 
         private System.Windows.Forms.ContainerControl containerControl1;
         private System.Windows.Forms.Label lbName;
@@ -587,7 +585,7 @@ namespace Interface
         private System.Windows.Forms.Button btnAddDomain;
         private System.Windows.Forms.TextBox tbDomain;
 
-        private DataGridViewDragNDrop<Rule> dgvRules;
+        private DataGridViewDragNDrop<KB.Models.Rule> dgvRules;
 
         private System.Windows.Forms.Button btnAdd;
 
@@ -601,7 +599,7 @@ namespace Interface
         private System.Windows.Forms.TabPage rulesTab;
         private System.Windows.Forms.TabPage variablesTab;
 
-        private DataGridViewDragNDrop<Variable> dgvVariables;
+        private DataGridViewDragNDrop<KB.Models.Variable> dgvVariables;
 
         #endregion
     }

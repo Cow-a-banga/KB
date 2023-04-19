@@ -17,6 +17,8 @@ namespace Interface
             _knowledgeBase = new KnowledgeBase();
 
             InitializeComponent();
+            KeyPreview = true;
+            KeyDown += new KeyEventHandler(Form_KeyDown);
             BindLists();
             foreach (DataGridViewColumn column in dgvRules.Columns)
                 column.ReadOnly = true;
@@ -67,7 +69,7 @@ namespace Interface
             tbVariable.Text = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Name;
             cbType.SelectedIndex = (int) _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].VariableType;
                 
-            dgvDoman.DataSource = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Domain;
+            dgvDoman.DataSourceRows = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Domain;
             foreach (DataGridViewColumn column in dgvDoman.Columns)
                 column.ReadOnly = true;
 
@@ -123,7 +125,7 @@ namespace Interface
 
         private void dgvDoman_SelectionChanged(object sender, EventArgs e)
         {
-            if(dgvVariables.CurrentCell == null)
+            if(dgvVariables.CurrentCell == null || dgvDoman.CurrentCell == null)
                 return;
 
             var domains = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Domain;
@@ -139,7 +141,7 @@ namespace Interface
                 _knowledgeBase.Variables.RemoveAt(dgvVariables.CurrentCell.RowIndex);
                 
                 if(dgvVariables.Rows.Count == 0)
-                    dgvDoman.DataSource = null;
+                    dgvDoman.DataSourceRows = null;
             }
         }
 
@@ -175,13 +177,12 @@ namespace Interface
         }
         private void BuildTree()
         {
-            if (_knowledgeBase.WorkingMemory == null)
+            tvMemory.Nodes.Clear();
+            
+            if (_knowledgeBase.WorkingMemory == null || !_knowledgeBase.Rules.Any())
             {
-                tvMemory.Nodes.Clear();
                 return;
             }
-            
-            tvMemory.Nodes.Clear();
 
             var node = new TreeNode();
             var rule = _knowledgeBase.WorkingMemory.GoalRule;
@@ -189,6 +190,7 @@ namespace Interface
             
             BuildSubTree(node, rule);
             tvMemory.Nodes.Add(node);
+            tvMemory.ExpandAll();
         }
 
         private void BuildSubTree(TreeNode subTree, StoredRule storedRule)
@@ -202,7 +204,7 @@ namespace Interface
                     var variable = _knowledgeBase.WorkingMemory.VariableByName(condition.VariableName);
                     if (variable.Variable.VariableType == VariableType.Calculating) continue;
                     
-                    var node = new TreeNode {Text = $"{variable.Variable.Name} = {variable.Value} (Выводимая)"};
+                    var node = new TreeNode {Text = $"{variable.Variable.Name} = {variable.Value} (Вводимая)"};
                     subTree.Nodes.Add(node);
 
                 }
@@ -273,10 +275,39 @@ namespace Interface
         
         private void сохранитьToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var formatter = new BinaryFormatter();
-            Stream stream = new FileStream(_currentFilePath, FileMode.Truncate);
-            formatter.Serialize(stream, _knowledgeBase);
-            stream.Close();
+            Save();
+        }
+
+        private void Save()
+        {
+            if (_currentFilePath != null)
+            {
+                var formatter = new BinaryFormatter();
+                Stream stream = new FileStream(_currentFilePath, FileMode.Truncate);
+                formatter.Serialize(stream, _knowledgeBase);
+                stream.Close();
+            }
+        }
+
+        private void Form_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Control && e.KeyCode == Keys.R)
+            {
+                if (tabControl.SelectedIndex == 0)
+                {
+                    _knowledgeBase.Rules.ReverseInPlace();
+                }
+                else if (tabControl.SelectedIndex == 1)
+                {
+                    _knowledgeBase.Variables.ReverseInPlace();
+                }
+
+                e.SuppressKeyPress = true;
+            }
+            else if (e.Control && e.KeyCode == Keys.S)
+            {
+                Save();
+            }
         }
     }
 }
