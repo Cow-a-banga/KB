@@ -12,13 +12,14 @@ namespace Interface
         private KnowledgeBase _kb;
         private BindingList<Condition> _conditions;
         private Rule _rule;
-        public SaveRuleForm(KnowledgeBase kb, Rule rule = null)
+        private int? _index;
+        public SaveRuleForm(KnowledgeBase kb, Rule rule = null, int? selectedIndex = null)
         {
             InitializeComponent();
             _kb = kb;
+            _index = selectedIndex;
             _rule = rule;
-            cbResVar.DataSource = _kb.Variables.ToList();
-            cbVar.DataSource = _kb.Variables.ToList();
+            BindComboBoxes();
 
             if (rule != null)
             {
@@ -29,8 +30,8 @@ namespace Interface
                 var varIndex = _kb.Variables
                     .Select((v, index) => (v, index))
                     .First(x => x.v.Name == _rule.VariableName).index;
-
-                var valueIndex = _kb.Variables[varIndex].Domain
+                
+                var valueIndex = _kb.Domains
                     .Select((v, index) => (v, index))
                     .First(x => x.v.Name == _rule.SettingValue).index;
                 cbResVar.SelectedIndex = varIndex;
@@ -45,27 +46,45 @@ namespace Interface
             dgvConditions.DataSource = _conditions;
         }
 
+        private void BindComboBoxes()
+        {
+            cbResVar.DataSource = _kb.Variables.Where(x => x.VariableType != VariableType.Inputting).ToList();
+            cbVar.DataSource = _kb.Variables;
+            BindDomainComboBox(cbResVar, cbResValue);
+            BindDomainComboBox(cbVar, cbValue);
+        }
+
+        private void BindDomainComboBox(ComboBox variableComboBox, ComboBox valueComboBox)
+        {
+            var variable = _kb.Variables.FirstOrDefault(x => x.Name == variableComboBox.Text);
+            if (variable != null)
+            {
+                var domain = _kb.Domains.FirstOrDefault(x => x.Name == variable.Domain);
+                valueComboBox.DataSource = domain.Values;
+            }
+        }
+
         private void cbResVar_SelectedIndexChanged(object sender, EventArgs e)
         {
-            cbResValue.DataSource = _kb.Variables[cbResVar.SelectedIndex].Domain;
+            BindDomainComboBox(cbResVar, cbResValue);
             cbResValue.SelectedIndex = 0;   
         }
 
         private void cbVar_SelectedIndexChanged(object sender, EventArgs e)
         {
-            cbValue.DataSource = _kb.Variables[cbVar.SelectedIndex].Domain;
+            BindDomainComboBox(cbVar, cbValue);
             cbValue.SelectedIndex = 0;
         }
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
-            if (cbVar.SelectedIndex == -1 || cbValue.SelectedIndex == -1)
+            if (string.IsNullOrWhiteSpace(cbVar.Text) || string.IsNullOrWhiteSpace(cbValue.Text))
                 return;
             
             var condition = new Condition
             {
-                VariableName = _kb.Variables[cbVar.SelectedIndex].Name,
-                Value = _kb.Variables[cbVar.SelectedIndex].Domain[cbValue.SelectedIndex].Name
+                VariableName = cbVar.Text,
+                Value = cbValue.Text
             };
             _conditions.Add(condition);
         }
@@ -80,23 +99,29 @@ namespace Interface
 
         private void btnSave_Click(object sender, EventArgs e)
         {
-            if (cbResValue.SelectedIndex == -1 || cbResVar.SelectedIndex == -1)
+            if (string.IsNullOrWhiteSpace(cbResValue.Text) || string.IsNullOrWhiteSpace(cbResVar.Text) || _conditions.Count == 0)
             {
                 MessageBox.Show("Заполните поля");
                 return;
             }
 
-                if (_rule == null)
+            if (_rule == null)
             {
-                var rule = new Rule();
-                SetRuleProperties(rule);
-                _kb.Rules.Add(rule);
+                _rule = new Rule();
+                SetRuleProperties(_rule);
+                if (_index.HasValue)
+                {
+                    _kb.Rules.Insert(_index.Value + 1, _rule);
+                }
+                else
+                {
+                    _kb.Rules.Add(_rule);
+                }
             }
             else
             {
                 SetRuleProperties(_rule);
             }
-            
             Close();
         }
 
@@ -104,9 +129,17 @@ namespace Interface
         {
             rule.Name = string.IsNullOrWhiteSpace(tbName.Text) ? $"Rule_{_kb.Rules.Count}" : tbName.Text;
             rule.Conditions = _conditions;
-            rule.VariableName = _kb.Variables[cbResVar.SelectedIndex].Name;
-            rule.SettingValue = _kb.Variables[cbResVar.SelectedIndex].Domain[cbResValue.SelectedIndex].Name;
+            rule.VariableName = cbResVar.Text;
+            rule.SettingValue = cbResValue.Text;
             rule.Details = tbDescription.Text;
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            var contextAddingForm = new ContextAddVariable(_kb);
+            contextAddingForm.StartPosition = FormStartPosition.CenterParent;
+            contextAddingForm.ShowDialog();
+            BindComboBoxes();
         }
     }
 }

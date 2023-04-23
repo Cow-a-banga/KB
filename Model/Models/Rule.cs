@@ -7,7 +7,7 @@ namespace KB.Models
     [Serializable]
     public class Rule
     {
-        [Browsable(false)]
+        [DisplayName("Имя")]
         public string Name { get; set; }
         [Browsable(false)]
         public string VariableName { get; set; }

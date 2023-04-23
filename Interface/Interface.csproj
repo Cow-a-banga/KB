@@ -28,6 +28,9 @@
       <Compile Update="DataGridViewDragNDrop.cs">
         <SubType>Component</SubType>
       </Compile>
+      <Compile Update="ContextAddVariable.cs">
+        <SubType>Form</SubType>
+      </Compile>
     </ItemGroup>
 
 </Project>

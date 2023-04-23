@@ -1,10 +1,12 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using KB.Models;
 using Model;
 using Model.Consultation;
+using Model.Models;
 
 namespace Interface
 {
@@ -48,7 +50,7 @@ namespace Interface
             }
             else
             {
-                var answer = (cbAnswers.SelectedItem as Domain).Name;
+                var answer = (cbAnswers.SelectedItem as DomainValue).Value;
                 questions.Add($"Вопрос: {lbQuestion.Text}");
                 questions.Add($"Ответ: {answer}");
                 questions.Add("");
@@ -59,7 +61,8 @@ namespace Interface
 
         private async Task<string> GetValueByUser(Variable variable)
         {
-            cbAnswers.DataSource = variable.Domain;
+            var domain = _kb.Domains.FirstOrDefault(x => x.Name == variable.Domain);
+            cbAnswers.DataSource = domain.Values;
             lbQuestion.Text = $"{variable.Name}?";
 
             tcs = new TaskCompletionSource<string>();

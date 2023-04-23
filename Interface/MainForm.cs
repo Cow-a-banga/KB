@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Text.Json;
 using System.Windows.Forms;
 using KB.Models;
+using Model;
 using Model.Consultation;
 
 namespace Interface
@@ -18,7 +22,7 @@ namespace Interface
 
             InitializeComponent();
             KeyPreview = true;
-            KeyDown += new KeyEventHandler(Form_KeyDown);
+            KeyDown += Form_KeyDown;
             BindLists();
             foreach (DataGridViewColumn column in dgvRules.Columns)
                 column.ReadOnly = true;
@@ -26,25 +30,32 @@ namespace Interface
 
         private void BindLists()
         {
-            dgvRules.DataSourceRows = _knowledgeBase.Rules;
-            dgvVariables.DataSourceRows = _knowledgeBase.Variables;
+            dgvRules.DataSource = _knowledgeBase.Rules;
+            dgvVariables.DataSource = _knowledgeBase.Variables;
+            dgvDomain.DataSource = _knowledgeBase.Domains;
+            cbDomain.DataSource = _knowledgeBase.Domains;
             cbType.DataSource = Enum.GetValues(typeof(VariableType));
             BuildTree();
         }
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
-            var createRuleForm = new SaveRuleForm(_knowledgeBase);
+            int? index = null;
+            if (dgvRules.CurrentCell != null)
+            {
+                index = dgvRules.CurrentCell.RowIndex;
+            }
+            
+            var createRuleForm = new SaveRuleForm(_knowledgeBase, selectedIndex:index);
             createRuleForm.StartPosition = FormStartPosition.CenterParent;
             createRuleForm.ShowDialog();
         }
 
-        private void AdditionOutput(AddResult status, TextBox textBox)
+        private void AdditionOutput(AddResult status)
         {
             switch (status)
             {
                 case AddResult.Success:
-                    textBox.Text = String.Empty;
                     break;
                 case AddResult.NoName:
                     MessageBox.Show("Заполните имя");
@@ -59,30 +70,102 @@ namespace Interface
         {
             var name = tbVariable.Text;
             var type = (VariableType) cbType.SelectedItem;
-            var status = _knowledgeBase.AddVariable(new Variable(name, type));
-            AdditionOutput(status, tbVariable);
+            var domain = cbDomain.Text;
+            var status = _knowledgeBase.AddVariable(new Variable(name, domain, type));
+            
+            AdditionOutput(status);
         }
 
         private void dgvVariables_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvVariables.CurrentCell == null) return;
-            tbVariable.Text = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Name;
-            cbType.SelectedIndex = (int) _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].VariableType;
-                
-            dgvDoman.DataSourceRows = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Domain;
-            foreach (DataGridViewColumn column in dgvDoman.Columns)
-                column.ReadOnly = true;
+            
+            var selectedVar = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex];
+            tbVariable.Text = selectedVar.Name;
+            cbType.SelectedIndex = (int) selectedVar.VariableType;
+            var domainName = selectedVar.Domain;
+            cbDomain.SelectedIndex = _knowledgeBase.Domains
+                .Select((x, index) => (x.Name, index))
+                .FirstOrDefault(x => x.Name == domainName).index;
 
+            var rulesUsing = _knowledgeBase.Rules.Where(x =>
+                    x.VariableName == selectedVar.Name || x.Conditions.Any(c => c.VariableName == selectedVar.Name))
+                .Select(x => x.Name)
+                .ToList();
+
+            lbVariableInRules.DataSource = rulesUsing;
+            
+            if (rulesUsing.Count > 0)
+            {
+                btnDeleteVariable.Enabled = false;
+                btnUpdateVariable.Enabled = false;
+            }
+            else
+            {
+                btnDeleteVariable.Enabled = true;
+                btnUpdateVariable.Enabled = true;
+            }
+        }
+        
+        private void dgvDomain_SelectionChanged(object sender, EventArgs e)
+        {
+            if (dgvDomain.CurrentCell == null) return;
+            
+            var selected = _knowledgeBase.Domains[dgvDomain.CurrentCell.RowIndex];
+            tbDomain.Text = selected.Name;
+            
+            dgvDomainValue.DataSource = selected.Values;
+
+            var domainUsing = _knowledgeBase.Variables.Any(x => x.Domain == selected.Name);
+            if (domainUsing)
+            {
+                btnDeletDomain.Enabled = false;
+                btnEditDomen.Enabled = false;
+            }
+            else
+            {
+                btnDeletDomain.Enabled = true;
+                btnEditDomen.Enabled = true;
+            }
+        }
+        
+        private void dgvDomainValue_SelectionChanged(object sender, EventArgs e)
+        {
+            if (dgvDomain.CurrentCell == null || dgvDomainValue.CurrentCell == null) return;
+            
+            var selected = _knowledgeBase.Domains[dgvDomain.CurrentCell.RowIndex];
+            var index = dgvDomainValue.CurrentCell.RowIndex;
+
+            if (index >= selected.Values.Count)
+            {
+                dgvDomainValue.ClearSelection();
+                return;
+            }
+            
+            var domainValue = selected.Values[index].Value;
+
+            tbDomainValue.Text = domainValue;
+
+
+            var domainValueUsing = _knowledgeBase.Rules.Any(x =>
+                x.SettingValue == domainValue || x.Conditions.Any(c => c.Value == domainValue));
+            if (domainValueUsing)
+            {
+                btnEditDomainValue.Enabled = false;
+                btnRemoveDomainValue.Enabled = false;
+            }
+            else
+            {
+                btnEditDomainValue.Enabled = true;
+                btnRemoveDomainValue.Enabled = true;
+            }
         }
 
         private void btnAddDomain_Click(object sender, EventArgs e)
         {
-            if (dgvVariables.CurrentCell != null)
-            {
-                var name = tbDomain.Text;
-                var status = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].AddDomain(name);
-                AdditionOutput(status, tbDomain);
-            }
+            var name = tbDomain.Text;
+            var status = _knowledgeBase.AddDomain(new Domain{Name = name});
+            AdditionOutput(status);
         }
 
         private void UpdatingOutput(UpdateResult status)
@@ -103,45 +186,46 @@ namespace Interface
             }
         }
         
+        private void RemoveOutput(RemoveResult status, List<string> elements, bool isDomain = true)
+        {
+            switch (status)
+            {
+                case RemoveResult.Success:
+                    break;
+                case RemoveResult.Used:
+                    var text = isDomain ? "Сперва удалите переменные:" : "Сперва удалите правила:";
+                    text = $"{text}\n{string.Join('\n',elements)}";
+                    MessageBox.Show(text);
+                    break;
+            }
+        }
+        
         private void btnUpdateDomain_Click(object sender, EventArgs e)
         {
-            if (dgvVariables.CurrentCell != null && dgvDoman.CurrentCell != null)
+            if (dgvDomain.CurrentCell != null)
             {
                 var name = tbDomain.Text;
                 var status = _knowledgeBase
-                    .Variables[dgvVariables.CurrentCell.RowIndex]
-                    .UpdateDomain(name, dgvDoman.CurrentCell.RowIndex);
+                    .UpdateDomain(name, dgvDomain.CurrentCell.RowIndex);
                 UpdatingOutput(status);
             }
         }
 
         private void btnDeleteDomain_Click(object sender, EventArgs e)
         {
-            if (dgvVariables.CurrentCell != null && dgvDoman.CurrentCell != null)
+            if (dgvDomain.CurrentCell != null)
             {
-                _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Domain.RemoveAt(dgvDoman.CurrentCell.RowIndex);
+                var (status, list) = _knowledgeBase.RemoveDomain(dgvDomain.CurrentCell.RowIndex);
+                RemoveOutput(status, list);
             }
-        }
-
-        private void dgvDoman_SelectionChanged(object sender, EventArgs e)
-        {
-            if(dgvVariables.CurrentCell == null || dgvDoman.CurrentCell == null)
-                return;
-
-            var domains = _knowledgeBase.Variables[dgvVariables.CurrentCell.RowIndex].Domain;
-
-            if(dgvDoman.CurrentCell.RowIndex <= domains.Count - 1)
-                tbDomain.Text = domains[dgvDoman.CurrentCell.RowIndex].Name;
         }
 
         private void btnDeleteVariable_Click(object sender, EventArgs e)
         {
             if (dgvVariables.CurrentCell != null)
             {
-                _knowledgeBase.Variables.RemoveAt(dgvVariables.CurrentCell.RowIndex);
-                
-                if(dgvVariables.Rows.Count == 0)
-                    dgvDoman.DataSourceRows = null;
+                var (status, list) = _knowledgeBase.RemoveVariable(dgvVariables.CurrentCell.RowIndex);
+                RemoveOutput(status, list, false);
             }
         }
 
@@ -151,10 +235,39 @@ namespace Interface
             {
                 var name = tbVariable.Text;
                 var type = (VariableType) cbType.SelectedItem;
+                var domain = cbDomain.Text;
                 var status = _knowledgeBase
-                    .UpdateVariable(name, type, dgvVariables.CurrentCell.RowIndex);
+                    .UpdateVariable(name, domain, type, dgvVariables.CurrentCell.RowIndex);
                 UpdatingOutput(status);
+                dgvVariables.Invalidate();
             }
+        }
+        
+        private void btnAddDomainValue_Click(object sender, EventArgs e)
+        {
+            var name = tbDomainValue.Text;
+            var selected = _knowledgeBase.Domains[dgvDomain.CurrentCell.RowIndex];
+            var status = selected.AddDomain(name);
+            AdditionOutput(status);
+            dgvDomainValue.Invalidate();
+        }
+
+        private void btnEditDomainValue_Click(object sender, EventArgs e)
+        {
+            var name = tbDomainValue.Text;
+            var selected = _knowledgeBase.Domains[dgvDomain.CurrentCell.RowIndex];
+            var valueIndex = dgvDomainValue.CurrentCell.RowIndex;
+            var status = selected.UpdateDomain(name, valueIndex);
+            UpdatingOutput(status);
+                
+            dgvDomainValue.Invalidate();
+        }
+
+        private void btnRemoveDomainValue_Click(object sender, EventArgs e)
+        {
+            var selected = _knowledgeBase.Domains[dgvDomain.CurrentCell.RowIndex];
+            var valueIndex = dgvDomainValue.CurrentCell.RowIndex;
+            selected.Values.RemoveAt(valueIndex);
         }
 
         private void btnEditRule_Click(object sender, EventArgs e)
@@ -227,7 +340,7 @@ namespace Interface
             form.StartPosition = FormStartPosition.CenterParent;
             form.Closed += (o, args) => {
                 BuildTree();
-                tabControl.SelectedIndex = 2;
+                tabControl.SelectedIndex = 3;
             };
             form.ShowDialog();
         }
@@ -307,6 +420,46 @@ namespace Interface
             else if (e.Control && e.KeyCode == Keys.S)
             {
                 Save();
+            }
+        }
+
+        private void tabControl_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var tabIndex = tabControl.SelectedIndex;
+
+            switch (tabIndex)
+            {
+                case 0:
+                    dgvRules.ClearSelection();
+                    if (_knowledgeBase.Rules.Count > 0)
+                        dgvRules.CurrentCell = dgvRules.Rows[0].Cells[0];
+                    break;
+                case 1:
+                    dgvVariables.ClearSelection();
+                    if(_knowledgeBase.Variables.Count > 0)
+                        dgvVariables.CurrentCell = dgvVariables.Rows[0].Cells[0];
+                    break;
+                case 2:
+                    dgvDomain.ClearSelection();
+                    if(_knowledgeBase.Domains.Count > 0)
+                        dgvDomain.CurrentCell = dgvDomain.Rows[0].Cells[0];
+                    dgvDomainValue.ClearSelection();
+                    if(_knowledgeBase.Domains.Count > 0 && _knowledgeBase.Domains[0].Values.Count > 0)
+                        dgvDomainValue.CurrentCell = dgvDomainValue.Rows[0].Cells[0];
+                    break;
+            }
+        }
+
+        private void импортПравилToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var openFileDialog = new OpenFileDialog();
+
+            if(openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                var stream = new StreamReader(openFileDialog.FileName);
+                var text = stream.ReadToEnd();
+                var kb = JsonSerializer.Deserialize<BindingList<Rule>>(text);
+                _knowledgeBase.Rules = kb;
             }
         }
     }
